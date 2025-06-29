@@ -291,21 +291,21 @@ export default function DataScreen() {
                     
                     {/* Delete Button - Separate from image touch area */}
                     <TouchableOpacity 
-                      style={{
-                        backgroundColor: '#EF4444',
-                        padding: 12,
-                        borderRadius: 8,
-                        marginRight: 8,
-                        minWidth: 50,
-                        minHeight: 50,
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                      }}
+                      style={[
+                        styles.deleteButton, 
+                        isLargeScreen && styles.deleteButtonLarge
+                      ]}
                       onPress={() => {
                         console.log('SCAN CARD DELETE BUTTON CLICKED!');
                         handleDeleteScan(scan.id);
-                      }}>
-                      <Text style={{ color: 'white', fontWeight: 'bold' }}>DELETE</Text>
+                      }}
+                      hitSlop={{ top: 25, bottom: 25, left: 25, right: 25 }}
+                      activeOpacity={0.6}>
+                      <Trash2 
+                        size={isLargeScreen ? 20 : 18} 
+                        color="#EF4444" 
+                        strokeWidth={2.5} 
+                      />
                     </TouchableOpacity>
                   </View>
                   
@@ -441,21 +441,21 @@ function ScanDetailsModal({ scan, onClose, onDelete, isLargeScreen }: ScanDetail
         </Text>
         <View style={styles.modalHeaderActions}>
           <TouchableOpacity 
-            style={{
-              backgroundColor: '#EF4444',
-              padding: 12,
-              borderRadius: 8,
-              marginRight: 8,
-              minWidth: 50,
-              minHeight: 50,
-              justifyContent: 'center',
-              alignItems: 'center',
-            }}
+            style={[
+              styles.modalDeleteButton, 
+              isLargeScreen && styles.modalDeleteButtonLarge
+            ]}
             onPress={() => {
               console.log('MODAL DELETE BUTTON CLICKED!');
               onDelete(scan.id);
-            }}>
-            <Text style={{ color: 'white', fontWeight: 'bold' }}>DELETE</Text>
+            }}
+            hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+            activeOpacity={0.6}>
+            <Trash2 
+              size={isLargeScreen ? 22 : 20} 
+              color="#EF4444" 
+              strokeWidth={2} 
+            />
           </TouchableOpacity>
           <TouchableOpacity style={styles.closeButton} onPress={onClose}>
             <X size={isLargeScreen ? 28 : 24} color="#6B7280" strokeWidth={2} />
