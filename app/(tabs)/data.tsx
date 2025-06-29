@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, Modal, Dimensions, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, Modal, Dimensions, Platform, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Camera, Upload, Tag, Trash2, Eye, Plus, Monitor, Smartphone, CircleCheck as CheckCircle, TriangleAlert as AlertTriangle, X } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -15,7 +15,6 @@ export default function DataScreen() {
   const [selectedScan, setSelectedScan] = useState<ScanResult | null>(null);
   const [isViewingDetails, setIsViewingDetails] = useState(false);
   const [filter, setFilter] = useState<'all' | 'benign' | 'concerning'>('all');
-  const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
   // Refresh scans when component mounts or becomes focused
   useEffect(() => {
@@ -68,87 +67,33 @@ export default function DataScreen() {
     }
   };
 
-  const handleDeleteScan = async (scanId: string, event?: any) => {
-    // Stop event propagation to prevent opening the modal
-    if (event) {
-      event.stopPropagation();
-      event.preventDefault();
-    }
-
-    console.log('=== HANDLE DELETE SCAN START ===');
+  const handleDeleteScan = async (scanId: string) => {
+    console.log('=== SIMPLE HANDLE DELETE SCAN ===');
     console.log('Delete button pressed for scan:', scanId);
     
-    // Prevent multiple delete operations on the same scan
-    if (isDeleting === scanId) {
-      console.log('Delete already in progress for scan:', scanId);
-      return;
+    try {
+      // Delete the scan directly
+      await deleteScan(scanId);
+      console.log('Scan deleted successfully!');
+      
+      // Close modal if it was open
+      if (selectedScan?.id === scanId) {
+        setSelectedScan(null);
+        setIsViewingDetails(false);
+      }
+      
+      // Show simple success message
+      Alert.alert('Success', 'Scan deleted successfully!');
+      
+    } catch (error) {
+      console.error('Error deleting scan:', error);
+      Alert.alert('Error', 'Failed to delete scan. Please try again.');
     }
-    
-    Alert.alert(
-      'Delete Scan',
-      'Are you sure you want to remove this scan from your records?',
-      [
-        { 
-          text: 'Cancel', 
-          style: 'cancel',
-          onPress: () => {
-            console.log('Delete cancelled by user');
-            setIsDeleting(null);
-          }
-        },
-        { 
-          text: 'Delete', 
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              console.log('User confirmed deletion of scan:', scanId);
-              setIsDeleting(scanId);
-              
-              // Perform the deletion
-              await deleteScan(scanId);
-              console.log('Scan deleted successfully from storage');
-              
-              // Close modal if the deleted scan was being viewed
-              if (selectedScan?.id === scanId) {
-                setSelectedScan(null);
-                setIsViewingDetails(false);
-              }
-              
-              // Show success feedback
-              Alert.alert(
-                'Scan Deleted',
-                'The scan has been removed from your records.',
-                [{ 
-                  text: 'OK',
-                  onPress: () => {
-                    console.log('Delete success dialog dismissed');
-                  }
-                }]
-              );
-              
-            } catch (error) {
-              console.error('Error deleting scan:', error);
-              Alert.alert(
-                'Delete Failed', 
-                'Failed to delete scan. Please try again.',
-                [{ text: 'OK' }]
-              );
-            } finally {
-              setIsDeleting(null);
-              console.log('=== HANDLE DELETE SCAN COMPLETE ===');
-            }
-          }
-        }
-      ]
-    );
   };
 
   const handleScanPress = (scan: ScanResult) => {
-    // Only open modal if not currently deleting this scan
-    if (isDeleting !== scan.id) {
-      setSelectedScan(scan);
-      setIsViewingDetails(true);
-    }
+    setSelectedScan(scan);
+    setIsViewingDetails(true);
   };
 
   const filteredScans = scans.filter(scan => filter === 'all' || scan.result === filter);
@@ -250,7 +195,7 @@ export default function DataScreen() {
         {/* Add New Scan Button */}
         <View style={[styles.actionsContainer, isLargeScreen && styles.actionsContainerLarge]}>
           <TouchableOpacity 
-            style={[styles.actionButton, styles.primaryButton, isLargeScreen && styles.actionButtonLarge]} 
+            style={[styles.actionButton, styles.primaryButton, { flex: 1 }, isLargeScreen && styles.actionButtonLarge]} 
             onPress={addNewScan}>
             <Plus size={isLargeScreen ? 24 : 20} color="#FFFFFF" strokeWidth={2} />
             <Text style={[styles.actionButtonText, isLargeScreen && styles.actionButtonTextLarge]}>
@@ -300,29 +245,21 @@ export default function DataScreen() {
           {filteredScans.map((scan) => {
             const ResultIcon = getResultIcon(scan.result);
             const resultColor = getResultColor(scan.result);
-            const isDeletingThisScan = isDeleting === scan.id;
             
             return (
               <View
                 key={scan.id}
                 style={[
                   styles.scanCard, 
-                  isLargeScreen && styles.scanCardLarge,
-                  isDeletingThisScan && styles.scanCardDeleting
+                  isLargeScreen && styles.scanCardLarge
                 ]}>
                 
                 {/* Scan Image - Clickable to open details */}
                 <TouchableOpacity
                   style={styles.scanImageContainer}
                   onPress={() => handleScanPress(scan)}
-                  disabled={isDeletingThisScan}
                   activeOpacity={0.8}>
                   <Image source={{ uri: scan.uri }} style={[styles.scanPreview, isLargeScreen && styles.scanPreviewLarge]} />
-                  {isDeletingThisScan && (
-                    <View style={styles.deletingOverlay}>
-                      <Text style={styles.deletingText}>Deleting...</Text>
-                    </View>
-                  )}
                 </TouchableOpacity>
                 
                 {/* Scan Info */}
@@ -340,20 +277,21 @@ export default function DataScreen() {
                     
                     {/* Delete Button - Separate from image touch area */}
                     <TouchableOpacity 
-                      style={[
-                        styles.deleteButton, 
-                        isLargeScreen && styles.deleteButtonLarge,
-                        isDeletingThisScan && styles.deleteButtonDisabled
-                      ]}
-                      onPress={(event) => handleDeleteScan(scan.id, event)}
-                      disabled={isDeletingThisScan}
-                      hitSlop={{ top: 25, bottom: 25, left: 25, right: 25 }}
-                      activeOpacity={isDeletingThisScan ? 1 : 0.6}>
-                      <Trash2 
-                        size={isLargeScreen ? 20 : 18} 
-                        color={isDeletingThisScan ? "#9CA3AF" : "#EF4444"} 
-                        strokeWidth={2.5} 
-                      />
+                      style={{
+                        backgroundColor: '#EF4444',
+                        padding: 12,
+                        borderRadius: 8,
+                        marginRight: 8,
+                        minWidth: 50,
+                        minHeight: 50,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                      }}
+                      onPress={() => {
+                        console.log('SCAN CARD DELETE BUTTON CLICKED!');
+                        handleDeleteScan(scan.id);
+                      }}>
+                      <Text style={{ color: 'white', fontWeight: 'bold' }}>DELETE</Text>
                     </TouchableOpacity>
                   </View>
                   
@@ -406,7 +344,6 @@ export default function DataScreen() {
           }}
           onDelete={handleDeleteScan}
           isLargeScreen={isLargeScreen}
-          isDeleting={isDeleting}
         />
       </Modal>
     </SafeAreaView>
@@ -416,12 +353,11 @@ export default function DataScreen() {
 interface ScanDetailsModalProps {
   scan: ScanResult | null;
   onClose: () => void;
-  onDelete: (scanId: string, event?: any) => void;
+  onDelete: (scanId: string) => void;
   isLargeScreen: boolean;
-  isDeleting: string | null;
 }
 
-function ScanDetailsModal({ scan, onClose, onDelete, isLargeScreen, isDeleting }: ScanDetailsModalProps) {
+function ScanDetailsModal({ scan, onClose, onDelete, isLargeScreen }: ScanDetailsModalProps) {
   if (!scan) return null;
 
   const getResultIcon = (result: string) => {
@@ -465,59 +401,62 @@ function ScanDetailsModal({ scan, onClose, onDelete, isLargeScreen, isDeleting }
   };
 
   const handleDelete = (event?: any) => {
+    console.log('=== HANDLE DELETE BUTTON PRESSED ===');
+    console.log('Scan ID:', scan.id);
+    console.log('Event:', event);
+    
     if (event) {
       event.stopPropagation();
       event.preventDefault();
     }
-    onDelete(scan.id, event);
+    
+    // Call delete function directly
+    console.log('Calling onDelete with scan ID:', scan.id);
+    onDelete(scan.id);
   };
 
   const ResultIcon = getResultIcon(scan.result);
   const resultColor = getResultColor(scan.result);
-  const isDeletingThisScan = isDeleting === scan.id;
 
   return (
     <SafeAreaView style={styles.modalContainer}>
-      <ScrollView style={styles.modalContent}>
-        {/* Modal Header */}
-        <View style={[styles.modalHeader, isLargeScreen && styles.modalHeaderLarge]}>
-          <Text style={[styles.modalTitle, isLargeScreen && styles.modalTitleLarge]}>
-            Scan Details
-          </Text>
-          <View style={styles.modalHeaderActions}>
-            <TouchableOpacity 
-              style={[
-                styles.modalDeleteButton, 
-                isLargeScreen && styles.modalDeleteButtonLarge,
-                isDeletingThisScan && styles.modalDeleteButtonDisabled
-              ]}
-              onPress={handleDelete}
-              disabled={isDeletingThisScan}
-              hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
-              activeOpacity={isDeletingThisScan ? 1 : 0.6}>
-              <Trash2 
-                size={isLargeScreen ? 22 : 20} 
-                color={isDeletingThisScan ? "#9CA3AF" : "#EF4444"} 
-                strokeWidth={2} 
-              />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-              <X size={isLargeScreen ? 28 : 24} color="#6B7280" strokeWidth={2} />
-            </TouchableOpacity>
-          </View>
+      {/* Modal Header - Fixed Position */}
+      <View style={[styles.modalHeader, isLargeScreen && styles.modalHeaderLarge]}>
+        <Text style={[styles.modalTitle, isLargeScreen && styles.modalTitleLarge]}>
+          Scan Details
+        </Text>
+        <View style={styles.modalHeaderActions}>
+          <TouchableOpacity 
+            style={{
+              backgroundColor: '#EF4444',
+              padding: 12,
+              borderRadius: 8,
+              marginRight: 8,
+              minWidth: 50,
+              minHeight: 50,
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}
+            onPress={() => {
+              console.log('MODAL DELETE BUTTON CLICKED!');
+              onDelete(scan.id);
+            }}>
+            <Text style={{ color: 'white', fontWeight: 'bold' }}>DELETE</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+            <X size={isLargeScreen ? 28 : 24} color="#6B7280" strokeWidth={2} />
+          </TouchableOpacity>
         </View>
+      </View>
 
+      {/* Scrollable Content */}
+      <ScrollView style={styles.modalContent}>
         {/* Image */}
         <View style={[styles.modalImageContainer, isLargeScreen && styles.modalImageContainerLarge]}>
           <Image 
             source={{ uri: scan.uri }} 
             style={[styles.modalImage, isLargeScreen && styles.modalImageLarge]} 
           />
-          {isDeletingThisScan && (
-            <View style={styles.modalDeletingOverlay}>
-              <Text style={styles.modalDeletingText}>Deleting scan...</Text>
-            </View>
-          )}
         </View>
 
         {/* Result */}
@@ -686,6 +625,8 @@ const styles = StyleSheet.create({
   actionsContainer: {
     paddingHorizontal: 24,
     marginBottom: 16,
+    flexDirection: 'row',
+    gap: 12,
   },
   actionsContainerLarge: {
     paddingHorizontal: 40,
@@ -810,9 +751,6 @@ const styles = StyleSheet.create({
     width: (width - 128) / 3,
     borderRadius: 16,
   },
-  scanCardDeleting: {
-    opacity: 0.6,
-  },
   scanImageContainer: {
     width: '100%',
     position: 'relative',
@@ -823,21 +761,6 @@ const styles = StyleSheet.create({
   },
   scanPreviewLarge: {
     height: 160,
-  },
-  deletingOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  deletingText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontFamily: 'Inter-SemiBold',
   },
   scanInfo: {
     padding: 12,
@@ -958,9 +881,11 @@ const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
     backgroundColor: '#F9FAFB',
+    zIndex: 1000,
   },
   modalContent: {
     flex: 1,
+    zIndex: 1001,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -970,6 +895,8 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
+    backgroundColor: '#F9FAFB',
+    zIndex: 1003,
   },
   modalHeaderLarge: {
     padding: 32,
@@ -1001,6 +928,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 4,
     elevation: 3,
+    zIndex: 1002,
+    minWidth: 44,
+    minHeight: 44,
   },
   modalDeleteButtonLarge: {
     padding: 14,

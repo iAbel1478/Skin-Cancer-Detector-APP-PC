@@ -169,37 +169,35 @@ export function useScans() {
 
   const deleteScan = async (scanId: string) => {
     try {
-      console.log('=== DELETE SCAN START ===');
+      console.log('=== SIMPLE DELETE SCAN START ===');
       console.log('Deleting scan with ID:', scanId);
-      console.log('Current global scans count:', globalScans.length);
-      console.log('Current global scans IDs:', globalScans.map(s => s.id));
       
-      // Find the scan to delete
-      const scanToDelete = globalScans.find(scan => scan.id === scanId);
-      if (!scanToDelete) {
-        console.error('Scan not found with ID:', scanId);
-        throw new Error('Scan not found');
+      // Get current scans from storage
+      const storedScans = await AsyncStorage.getItem(SCANS_STORAGE_KEY);
+      let currentScans = [];
+      
+      if (storedScans) {
+        currentScans = JSON.parse(storedScans);
       }
       
-      console.log('Found scan to delete:', scanToDelete.location);
+      console.log('Current scans before delete:', currentScans.length);
       
-      // Create new array without the deleted scan
-      const updatedScans = globalScans.filter(scan => scan.id !== scanId);
-      console.log('Scans after filtering:', updatedScans.length);
-      console.log('Remaining scan IDs:', updatedScans.map(s => s.id));
+      // Remove the scan
+      const updatedScans = currentScans.filter(scan => scan.id !== scanId);
       
-      // Save to storage and update global state
-      const savedScans = await saveScans(updatedScans);
-      console.log('Scans saved successfully, count:', savedScans.length);
+      console.log('Scans after delete:', updatedScans.length);
       
-      // Force immediate local state update
-      setScans([...savedScans]);
+      // Save back to storage
+      await AsyncStorage.setItem(SCANS_STORAGE_KEY, JSON.stringify(updatedScans));
       
-      console.log('=== DELETE SCAN COMPLETE ===');
+      // Update local state
+      setScans(updatedScans);
+      
+      console.log('=== SIMPLE DELETE SCAN COMPLETE ===');
       
       return true;
     } catch (error) {
-      console.error('=== DELETE SCAN ERROR ===');
+      console.error('=== SIMPLE DELETE SCAN ERROR ===');
       console.error('Error deleting scan:', error);
       throw error;
     }
