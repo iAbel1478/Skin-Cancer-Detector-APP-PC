@@ -71,31 +71,10 @@ export function useScans() {
         updateGlobalScans(parsedScans);
         setScans([...parsedScans]);
       } else {
-        console.log('No stored scans found, initializing with mock data');
-        // Initialize with mock data if no stored scans
-        const mockData: ScanResult[] = [
-          {
-            id: '1',
-            uri: 'https://images.pexels.com/photos/4386321/pexels-photo-4386321.jpeg?auto=compress&cs=tinysrgb&w=400',
-            result: 'benign',
-            confidence: 92,
-            dateScanned: '2024-01-15',
-            location: 'Left arm',
-            notes: 'Regular monitoring recommended'
-          },
-          {
-            id: '2',
-            uri: 'https://images.pexels.com/photos/4386344/pexels-photo-4386344.jpeg?auto=compress&cs=tinysrgb&w=400',
-            result: 'concerning',
-            confidence: 87,
-            dateScanned: '2024-01-12',
-            location: 'Right shoulder',
-            notes: 'Irregular borders detected'
-          }
-        ];
-        await AsyncStorage.setItem(SCANS_STORAGE_KEY, JSON.stringify(mockData));
-        updateGlobalScans(mockData);
-        setScans([...mockData]);
+        console.log('No stored scans found, starting with empty array');
+        // Start with empty array instead of mock data
+        updateGlobalScans([]);
+        setScans([]);
       }
     } catch (error) {
       console.error('Error loading scans:', error);
@@ -224,6 +203,19 @@ export function useScans() {
     await loadScans();
   }, []);
 
+  const clearAllScans = useCallback(async () => {
+    try {
+      console.log('Clearing all scans...');
+      await AsyncStorage.removeItem(SCANS_STORAGE_KEY);
+      updateGlobalScans([]);
+      setScans([]);
+      console.log('All scans cleared successfully');
+    } catch (error) {
+      console.error('Error clearing scans:', error);
+      throw error;
+    }
+  }, []);
+
   // Debug logging
   useEffect(() => {
     console.log('useScans state updated - scans count:', scans.length);
@@ -236,5 +228,6 @@ export function useScans() {
     deleteScan,
     updateScan,
     refreshScans,
+    clearAllScans,
   };
 }

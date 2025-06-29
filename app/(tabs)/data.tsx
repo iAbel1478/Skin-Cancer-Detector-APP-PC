@@ -11,7 +11,7 @@ const isWeb = Platform.OS === 'web';
 const isLargeScreen = width > 768;
 
 export default function DataScreen() {
-  const { scans, addScan, deleteScan, isLoading, refreshScans } = useScans();
+  const { scans, addScan, deleteScan, isLoading, refreshScans, clearAllScans } = useScans();
   const [selectedScan, setSelectedScan] = useState<ScanResult | null>(null);
   const [isViewingDetails, setIsViewingDetails] = useState(false);
   const [filter, setFilter] = useState<'all' | 'benign' | 'concerning'>('all');
@@ -202,6 +202,20 @@ export default function DataScreen() {
               Add New Scan
             </Text>
           </TouchableOpacity>
+          
+          {/* Temporary Clear Button - Remove this after clearing mock data */}
+          {scans.length > 0 && (
+            <TouchableOpacity 
+              style={[styles.actionButton, { backgroundColor: '#6B7280', flex: 0.3 }, isLargeScreen && styles.actionButtonLarge]} 
+              onPress={async () => {
+                await clearAllScans();
+                Alert.alert('Cleared', 'All scans have been removed.');
+              }}>
+              <Text style={[styles.actionButtonText, isLargeScreen && styles.actionButtonTextLarge]}>
+                Clear All
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Filters */}
